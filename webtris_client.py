@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 import requests
 
 #15 minute traffic oservations from a single site
-class TrafficObservation:
+class Observation:
 
     site_name: str
     report_date: date
@@ -19,17 +19,17 @@ class TrafficObservation:
         self.avg_speed = avg_speed
         self.total_volume = total_volume
     
-    def __lt__(self, other: 'TrafficObservation') -> bool:
+    def __lt__(self, other: 'Observation') -> bool:
         
         if self.report_date != other.report_date:
             return self.report_date < other.report_date
         return self.time_period_ending < other.time_period_ending
     
-    def __eq__(self, other: 'TrafficObservation') -> bool:
+    def __eq__(self, other: 'Observation') -> bool:
         return (self.report_date == other.report_date and self.time_period_ending == other.time_period_ending and self.site_name == other.site_name)
     
     def __repr__(self) -> str:
-        return (f"TrafficObservation(name={self.site_name}, date={self.report_date}, time={self.time_period_ending}, speed={self.avg_speed}, volume={self.total_volume})")
+        return (f"Observation(name={self.site_name}, date={self.report_date}, time={self.time_period_ending}, speed={self.avg_speed}, volume={self.total_volume})")
 
 #when API can't be reached
 class APIConnectionError(Exception):
@@ -74,7 +74,7 @@ class APIClient:
         self.connector = connector
     
     #fetch the daily data in 15 minute intervals
-    def fetch_daily_data(self, site_id: int, date: str) -> List[TrafficObservation]:
+    def fetch_daily_data(self, site_id: int, date: str) -> List[Observation]:
         
         self.validate_date_format(date)
         url = self.construct_url(site_id, date, date)
@@ -91,7 +91,7 @@ class APIClient:
         return endpoint + params
     
     #parse the json response into a list of TrafficObservations
-    def parse_json_response(self, json_data: Dict[str, Any]) -> List[TrafficObservation]:
+    def parse_json_response(self, json_data: Dict[str, Any]) -> List[Observation]:
 
         observations = []
 
@@ -108,8 +108,8 @@ class APIClient:
             avg_speed = self.parse_optional_int(row.get("Avg mph", ""))
             total_volume = self.parse_optional_int(row.get("Total Volume", ""))
 
-            #create a TrafficObservation for each 15 minute interval
-            observation = TrafficObservation(
+            #create an Observation for each 15 minute interval
+            observation = Observation(
                             site_name=site_name,
                             report_date=report_date,
                             time_period_ending=time_period_ending,
@@ -162,7 +162,7 @@ class SingleSite:
     
     site_id: int
     site_name: str
-    observations: List[TrafficObservation]
+    observations: List[Observation]
     
     def __init__(self, site_id: int, site_name: str):
         
@@ -225,7 +225,7 @@ class SingleSite:
 
         return sum(hourly_records)
 
-    def all_observations_for_hour(self, hour: int) -> List[TrafficObservation]:
+    def all_observations_for_hour(self, hour: int) -> List[Observation]:
         #catch invalid hour input
         if not (0 <= hour <= 23):
             raise ValueError(f"Hour must be between 0 and 23, got {hour}")

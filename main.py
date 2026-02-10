@@ -4,7 +4,10 @@ def main():
     connector = APIConnector()
     client = APIClient(connector=connector)
     site = SingleSite(site_id=461, site_name="Example Site")
-    date = "01012024"
+    day = "01"
+    month = "01"
+    year = "2024"
+    date = day + month + year
     site.fetch_data(client, date)
     print(repr(site))
     print(f"Average speed for {date}: {site.calculate_avg_speed()}")
