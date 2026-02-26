@@ -130,7 +130,7 @@ def invalid_date_api_response():
 
 @pytest.fixture
 def api_response_single_record():
-
+    
     return {
         "Header": {
             "row_count": 1,
@@ -166,42 +166,42 @@ def api_response_empty():
 def sample_observations():
 
     return [
-        TrafficObservation(
+        Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(0, 14, 0),
             avg_speed=65,
             total_volume=182
         ),
-        TrafficObservation(
+        Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(0, 29, 0),
             avg_speed=70,
             total_volume=150
         ),
-        TrafficObservation(
+        Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(0, 44, 0),
             avg_speed=None,  #missing data
             total_volume=120
         ),
-        TrafficObservation(
+        Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(1, 14, 0),
             avg_speed=55,
             total_volume=300
         ),
-        TrafficObservation(
+        Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(1, 29, 0),
             avg_speed=60,
             total_volume=320
         ),
-        TrafficObservation(
+        Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(8, 0, 0),
@@ -214,14 +214,14 @@ def sample_observations():
 def sample_observations_no_speed_or_volume():
 
     return [
-        TrafficObservation(
+        Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(0, 14, 0),
             avg_speed=None,
             total_volume=None
         ),
-        TrafficObservation(
+        Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(0, 29, 0),
@@ -234,14 +234,14 @@ def sample_observations_no_speed_or_volume():
 def sample_observations_diff_dates():
 
     return [
-        TrafficObservation(
+        Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 18),
             time_period_ending=time(0, 14, 0),
             avg_speed=None,
             total_volume=None
         ),
-        TrafficObservation(
+        Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(0, 29, 0),
@@ -254,14 +254,14 @@ def sample_observations_diff_dates():
 def sample_observations_same_time():
 
     return [
-        TrafficObservation(
+        Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(0, 14, 0),
             avg_speed=None,
             total_volume=None
         ),
-        TrafficObservation(
+        Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(0, 14, 0),
@@ -429,7 +429,7 @@ class TestSingleSite:
         repr_str = repr(populated_site)
         assert "SingleSite(id=461, name='Example Site', observations=6)" == repr_str
 
-class TestTrafficObservation:
+class TestObservation:
     
     def test_comparison(self, sample_observations):
 
@@ -451,5 +451,5 @@ class TestTrafficObservation:
     def test_representation(self, sample_observations):
 
         repr_str = repr(sample_observations[0])
-        assert "TrafficObservation(name=Example Site, date=2025-10-19, time=00:14:00, speed=65, volume=182)" == repr_str
+        assert "Observation(name=Example Site, date=2025-10-19, time=00:14:00, speed=65, volume=182)" == repr_str
 
