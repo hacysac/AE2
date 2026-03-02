@@ -1,18 +1,18 @@
 from datetime import date, datetime, time
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 import requests
 
-#15 minute traffic oservations from a single site
+# 15 minute traffic oservations from a single site
 class Observation:
 
-    #required fields
+    # required fields
     site_name: str
     report_date: date
     time_period_ending: time
-    avg_speed: Optional[int]
-    total_volume: Optional[int]
+    avg_speed: int | None
+    total_volume: int | None
 
-    def __init__(self, site_name: str, report_date: date, time_period_ending: time, avg_speed: Optional[int], total_volume: Optional[int]):
+    def __init__(self, site_name: str, report_date: date, time_period_ending: time, avg_speed: int | None, total_volume: int | None) -> None:
         
         self.site_name = site_name
         self.report_date = report_date
@@ -20,39 +20,39 @@ class Observation:
         self.avg_speed = avg_speed
         self.total_volume = total_volume
     
-    #compare first by date, then by time for sorting
+    # compare first by date, then by time for sorting
     def __lt__(self, other: 'Observation') -> bool:
         
         if self.report_date != other.report_date:
             return self.report_date < other.report_date
         return self.time_period_ending < other.time_period_ending
     
-    #consider 2 observations equal if they have the same site, date, and time
+    # consider 2 observations equal if they have the same site, date, and time
     def __eq__(self, other: 'Observation') -> bool:
         return (self.report_date == other.report_date and self.time_period_ending == other.time_period_ending and self.site_name == other.site_name)
     
-    #representation for observations
+    # representation for observations
     def __repr__(self) -> str:
         return (f"Observation(name={self.site_name}, date={self.report_date}, time={self.time_period_ending}, speed={self.avg_speed}, volume={self.total_volume})")
 
-#when API can't be reached
+# when API can't be reached
 class APIConnectionError(Exception):
     pass
 
-#when API returns an error status code
+# when API returns an error status code
 class APIResponseError(Exception):
     pass
 
-#handles API connections and error
+# handles API connections and error
 class APIConnector:
     
     def make_request(self, url: str) -> Dict[str, Any]:
 
         try:
-            #attempt to make the API request
+            # attempt to make the API request
             response = requests.get(url)
             
-            #check for  errors
+            # check for errors from site call
             if response.status_code == 404:
                 raise APIResponseError("Site not found (404)")
             elif response.status_code == 500:
@@ -60,12 +60,13 @@ class APIConnector:
             elif response.status_code != 200:
                 raise APIResponseError(f"API returned status code {response.status_code}")
             
-            return response.json() #return the json as a dictionary if no errors
+            return response.json() # return the json as a dictionary if no errors
             
+        # errors if the request fails
         except requests.exceptions.Timeout:
-            raise APIConnectionError("Request timed out - API may be unavailable")
+            raise APIConnectionError("Request timed out, API may be unavailable")
         except requests.exceptions.ConnectionError:
-            raise APIConnectionError("Could not connect to API - check your internet connection")
+            raise APIConnectionError("Could not connect to API, check your internet connection")
         except requests.exceptions.RequestException as e:
             raise APIConnectionError(f"Network error: {e}")
   
@@ -75,10 +76,10 @@ class APIClient:
     BASE_URL = "https://webtris.nationalhighways.co.uk/api/v1.0"
     connector: APIConnector
     
-    def __init__(self, connector: APIConnector):
+    def __init__(self, connector: APIConnector) -> None:
         self.connector = connector
     
-    #fetch the daily data in 15 minute intervals
+    # fetch the daily data in 15 minute intervals
     def fetch_daily_data(self, site_id: int, date: str) -> List[Observation]:
         
         self.validate_date_format(date)
@@ -89,32 +90,32 @@ class APIClient:
         
         return observations
     
-    #construct the URL with the given parameters
+    # make the URL with the given parameters
     def construct_url(self, site_id: int, start_date: str, end_date: str) -> str:
         
         endpoint = f"{self.BASE_URL}/reports/daily?"
         params = f"sites={site_id}&start_date={start_date}&end_date={end_date}&page=1&page_size=500"
         return endpoint + params
     
-    #parse the json response into a list of Observations
+    # parse the json response into a list of Observations
     def parse_json_response(self, json_data: Dict[str, Any]) -> List[Observation]:
 
         observations = []
 
         if "Rows" not in json_data:
-            raise APIResponseError("Invalid API response - missing 'Rows'")
+            raise APIResponseError("Invalid API response, missing 'Rows'")
         
         rows = json_data["Rows"]
         
         for row in rows:
-            #required fields
+            # required fields
             site_name = row["Site Name"]
             report_date = self.parse_date(row["Report Date"])
             time_period_ending = self.parse_time(row["Time Period Ending"])
             avg_speed = self.parse_optional_int(row.get("Avg mph", ""))
             total_volume = self.parse_optional_int(row.get("Total Volume", ""))
 
-            #create an Observation for each 15 minute interval
+            # create an Observation for each 15 minute interval
             observation = Observation(
                             site_name=site_name,
                             report_date=report_date,
@@ -122,42 +123,42 @@ class APIClient:
                             avg_speed=avg_speed,
                             total_volume=total_volume)
             
-            #add the observation to the list
+            # add the observation to the list
             observations.append(observation)
         
-        return observations #return the list of observations parsed from the json
+        return observations # return the list of observations parsed from the json
     
-    #parse the date string from the API into a date object
+    # parse the date string from the API into a date object
     def parse_date(self, date_str: str) -> date:
-        #API returns dates like "2025-10-19T00:00:00"
+        # API returns dates like "2025-10-19T00:00:00"
         dt = datetime.fromisoformat(date_str)
         return dt.date()
     
-    #parse the time string from the API into a time object
+    # parse the time string from the API into a time object
     def parse_time(self, time_str: str) -> time:
-        #API returns times like "00:14:00"
+        # API returns times like "00:13:00"
         parts = time_str.split(":")
         return time(hour=int(parts[0]), minute=int(parts[1]), second=int(parts[2]))
      
-    #parse optional integer fields (avg_speed, total_volume), returning None if they are missing or invalid
-    def parse_optional_int(self, value: str) -> Optional[int]:
+    # parse optional integer fields (avg_speed, total_volume), returning None if they are missing or invalid
+    def parse_optional_int(self, value: str) -> int | None:
         try:
             return int(value)
         except:
             return None
     
-    #validate that the date string is in the correct format and represents a valid date
+    # validate that the date string is in the correct format and represents a valid date
     def validate_date_format(self, date: str) -> None:
         if len(date) != 8:
             raise ValueError(f"Date must be 8 characters in format DDMMYYYY, got: {date}")
         
         try:
-            #Try to parse it to check validity
+            # try to parse it to check if it's a valid date
             day = int(date[0:2])
             month = int(date[2:4])
             year = int(date[4:8])
             
-            #Basic validation
+            # check that number are in valid ranges for day, month, and year
             if not (1 <= day <= 31):
                 raise ValueError(f"Invalid day: {day}")
             if not (1 <= month <= 12):
@@ -168,21 +169,21 @@ class APIClient:
         except ValueError as e:
             raise ValueError(f"Invalid date format: {date}. Error: {e}")
         
-#all 15 minute intervals from a single site for a given day
+# all 15 minute intervals from a single site for a given day
 class SingleSite:
     
-    #required fields
+    # required fields
     site_id: int
     site_name: str
     observations: List[Observation]
     
-    def __init__(self, site_id: int, site_name: str):
+    def __init__(self, site_id: int, site_name: str) -> None:
         
         self.site_id = site_id
         self.site_name = site_name
         self.observations = []
     
-    #fetch the data for this site and date using the API client, storing it in the observations list
+    # fetch the data for this site and date using the API client, storing it in the observations list
     def fetch_data(self, client: APIClient, date: str) -> None:
         self.observations = client.fetch_daily_data(self.site_id, date)
         
@@ -190,8 +191,8 @@ class SingleSite:
         if self.observations:
             self.site_name = self.observations[0].site_name
     
-    #calculate the average speed for the day, ignore observations missing speed
-    def calculate_avg_speed(self) -> Optional[float]:
+    # calculate the average speed for the day, ignore observations missing speed
+    def calculate_avg_speed(self) -> float | None:
         
         valid_speeds = [
             observation.avg_speed for observation in self.observations 
@@ -203,7 +204,7 @@ class SingleSite:
         
         return sum(valid_speeds) / len(valid_speeds)
     
-    #calculate the total volume for the day, ignore observations missing volume
+    # calculate the total volume for the day, ignore observations missing volume
     def calculate_total_volume(self) -> int:
         
         total = sum(
@@ -213,9 +214,9 @@ class SingleSite:
         
         return total
     
-    #calculate the average speed for a specific hour, ignore observations missing speed
-    def calculate_avg_speed_for_hour(self, hour: int) -> Optional[float]:
-        #catch invalid hour input
+    # calculate the average speed for a specific hour, ignore observations missing speed
+    def calculate_avg_speed_for_hour(self, hour: int) -> float | None:
+        # catch invalid hour input
         if not (0 <= hour <= 23):
             raise ValueError(f"Hour must be between 0 and 23, got {hour}")
         
@@ -229,9 +230,9 @@ class SingleSite:
         
         return sum(hourly_records) / len(hourly_records)
     
-    #calculate the total volume for a specific hour, ignore observations missing volume
+    # calculate the total volume for a specific hour, ignore observations missing volume
     def calculate_total_volume_for_hour(self, hour: int) -> int:
-        #catch invalid hour input
+        # catch invalid hour input
         if not (0 <= hour <= 23):
             raise ValueError(f"Hour must be between 0 and 23, got {hour}")
 
@@ -242,9 +243,9 @@ class SingleSite:
 
         return sum(hourly_records)
 
-    #helper method to get all observations for a specific hour
+    # helper method to get all observations for a specific hour
     def all_observations_for_hour(self, hour: int) -> List[Observation]:
-        #catch invalid hour input
+        # catch invalid hour input
         if not (0 <= hour <= 23):
             raise ValueError(f"Hour must be between 0 and 23, got {hour}")
         
@@ -253,31 +254,31 @@ class SingleSite:
             if observation.time_period_ending.hour == hour
         ]
     
-    #find the hour with the highest total volume, return None if no observations or all volumes are missing
-    def find_peak_hour(self) -> Optional[int]:
+    # find the hour with the highest total volume, return None if no observations or all volumes are missing
+    def find_peak_hour(self) -> int | None:
         #check for observations
         if not self.observations:
             return None
         
-        # Calculate volume for each hour
+        # calculate volume for each hour
         hourly_volumes = {}
         for hour in range(24):
             volume = self.calculate_total_volume_for_hour(hour)
             if volume > 0:  # Only include hours with actual traffic
                 hourly_volumes[hour] = volume
         
-        #find hour with max volume
+        # find hour with max volume
         peak_hour = max(hourly_volumes, key=hourly_volumes.get) if hourly_volumes else None
         return peak_hour
     
-    #allow iteration over observations
-    def __iter__(self):
+    # allow iteration over observations
+    def __iter__(self) -> iter:
         return iter(self.observations)
     
-    #allow len() to return the number of observations
+    # allow len() to return the number of observations
     def __len__(self) -> int:
         return len(self.observations)
     
-    #representation for SingleSite
+    # representation for SingleSite
     def __repr__(self) -> str:
         return (f"SingleSite(id={self.site_id}, name='{self.site_name}', observations={len(self.observations)})")

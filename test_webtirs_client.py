@@ -2,6 +2,7 @@ import pytest
 from datetime import date, time
 from webtris_client import *
 
+# fake API connector to simmulate different API responses and errors for testing
 class MockAPIConnector:
     
     def __init__(self, response_data=None, should_raise=None):
@@ -9,6 +10,7 @@ class MockAPIConnector:
         self.response_data = response_data
         self.should_raise = should_raise
     
+    # raises a error if specified, otherwise returns the response data
     def make_request(self, url: str) -> Dict[str, Any]:
         
         if self.should_raise:
@@ -17,7 +19,7 @@ class MockAPIConnector:
         return self.response_data
 
     
-
+# fixture for a valid API response with multiple observations
 @pytest.fixture
 def valid_api_response():
 
@@ -60,7 +62,7 @@ def valid_api_response():
         ]
     }
 
-
+# fixture for API response with missing speed and volume data
 @pytest.fixture
 def api_response_with_missing_data():
 
@@ -75,7 +77,7 @@ def api_response_with_missing_data():
                 "Site Name": "Example Site",
                 "Report Date": "2025-10-20T00:00:00",
                 "Time Period Ending": "00:14:00",
-                "Avg mph": "",  #empty string
+                "Avg mph": "",  # empty speed
                 "Total Volume": "100"
             },
             {
@@ -83,18 +85,19 @@ def api_response_with_missing_data():
                 "Report Date": "2025-10-20T00:00:00",
                 "Time Period Ending": "00:29:00",
                 "Avg mph": "55",
-                "Total Volume": ""  #empty string
+                "Total Volume": ""  # empty volume
             },
             {
                 "Site Name": "Example Site",
                 "Report Date": "2025-10-20T00:00:00",
                 "Time Period Ending": "00:44:00",
-                "Avg mph": "",  #both empty
+                "Avg mph": "",  # both empty
                 "Total Volume": ""
             }
         ]
     }
 
+# fixture for API response with invalid data (missing 'Rows' key)
 @pytest.fixture
 def invalid_observations_api_response():
 
@@ -104,9 +107,10 @@ def invalid_observations_api_response():
             "start_date": "20102025",
             "end_date": "20102025"
         },
-        #missing 'Rows' key
+        # missing 'Rows' key
     }
 
+# fixture for API response with invalid date format
 @pytest.fixture
 def invalid_date_api_response():
 
@@ -119,7 +123,7 @@ def invalid_date_api_response():
         "Rows": [
             {
                 "Site Name": "Example Site",
-                "Report Date": "2025/10/20",  #invalid format
+                "Report Date": "2025/10/20",  # invalid format
                 "Time Period Ending": "00:14:00",
                 "Avg mph": "65",
                 "Total Volume": "182"
@@ -127,7 +131,7 @@ def invalid_date_api_response():
         ]
     }
 
-
+# fixture for API response with only one observation record
 @pytest.fixture
 def api_response_single_record():
     
@@ -148,7 +152,7 @@ def api_response_single_record():
         ]
     }
 
-
+# fixture for API response with no observations (empty response)
 @pytest.fixture
 def api_response_empty():
 
@@ -161,7 +165,7 @@ def api_response_empty():
         "Rows": []
     }
 
-
+# fixture for a list of observations
 @pytest.fixture
 def sample_observations():
 
@@ -210,6 +214,7 @@ def sample_observations():
         ),
     ]
 
+# fixture for a list of observations with no valid speed or volume data
 @pytest.fixture
 def sample_observations_no_speed_or_volume():
 
@@ -218,18 +223,19 @@ def sample_observations_no_speed_or_volume():
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(0, 14, 0),
-            avg_speed=None,
-            total_volume=None
+            avg_speed=None, # no speed
+            total_volume=None # no volume
         ),
         Observation(
             site_name="Example Site",
             report_date=date(2025, 10, 19),
             time_period_ending=time(0, 29, 0),
-            avg_speed=None,
-            total_volume=None
+            avg_speed=None, # no speed
+            total_volume=None # no volume
         )
     ]
 
+# fixture for observations with different dates to test comparison logic
 @pytest.fixture
 def sample_observations_diff_dates():
 
@@ -250,6 +256,7 @@ def sample_observations_diff_dates():
         )
     ]
 
+# fixture for observations with the same date and time to test equality logic
 @pytest.fixture
 def sample_observations_same_time():
 
@@ -270,6 +277,7 @@ def sample_observations_same_time():
         )
     ]
 
+# fixture for a SingleSite object with sample observations
 @pytest.fixture
 def populated_site(sample_observations):
 
@@ -277,6 +285,7 @@ def populated_site(sample_observations):
     site.observations = sample_observations
     return site
 
+# fixture for a SingleSite object with observations that have no speed or volume data
 @pytest.fixture
 def populated_site_no_speed_or_volume(sample_observations_no_speed_or_volume):
 
@@ -284,6 +293,7 @@ def populated_site_no_speed_or_volume(sample_observations_no_speed_or_volume):
     site.observations = sample_observations_no_speed_or_volume
     return site
 
+# test cases for APIClient class (functions titles are self explanatory)
 class TestAPIClient:
     
     def test_parse_response_valid(self, valid_api_response):
@@ -297,6 +307,11 @@ class TestAPIClient:
         assert observations[0].time_period_ending == time(0, 14, 0)
         assert observations[0].avg_speed == 65
         assert observations[0].total_volume == 182
+
+    def test_invalid_api_response(self, invalid_observations_api_response):
+        client = APIClient(connector=MockAPIConnector(response_data=invalid_observations_api_response))
+        with pytest.raises(APIResponseError):
+            client.fetch_daily_data(461, "20102025")
     
     def test_parse_response_missing_data(self, api_response_with_missing_data):
 
@@ -347,6 +362,7 @@ class TestAPIClient:
         with pytest.raises(ValueError, match=f"Invalid date format: 22102098"):
             client.fetch_daily_data(site_id=461, date="22102098")
 
+# test cases for SingleSite class (functions titles are self explanatory)
 class TestSingleSite:
     
     def test_fetch_data_populates_observations(self, valid_api_response):
@@ -429,6 +445,7 @@ class TestSingleSite:
         repr_str = repr(populated_site)
         assert "SingleSite(id=461, name='Example Site', observations=6)" == repr_str
 
+# test cases for Observation class (functions titles are self explanatory)
 class TestObservation:
     
     def test_comparison(self, sample_observations):
