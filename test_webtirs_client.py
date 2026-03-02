@@ -1,23 +1,15 @@
-import pytest
+from unittest.mock import Mock
 from datetime import date, time
+import pytest
 from webtris_client import APIClient, APIResponseError, SingleSite, Observation
 from typing import Dict, Any
 
 
 # fake API connector to simmulate different API responses and errors for testing
-class MockAPIConnector:
-    def __init__(self, response_data=None, should_raise=None):
-
-        self.response_data = response_data
-        self.should_raise = should_raise
-
-    # raises a error if specified, otherwise returns the response data
-    def make_request(self, url: str) -> Dict[str, Any]:
-
-        if self.should_raise:
-            raise self.should_raise
-
-        return self.response_data
+def mock_api_connector(response_data: Dict[str, Any]) -> Mock:
+    mock = Mock(response_data=response_data)
+    mock.make_request.return_value = mock.response_data
+    return mock
 
 
 # fixture for a valid API response with multiple observations
@@ -268,6 +260,38 @@ def sample_observations_same_time():
     ]
 
 
+# fixture for an API response with observations in reverse chronological order to test sorting
+@pytest.fixture
+def unsorted_api_response():
+
+    return {
+        "Header": {"row_count": 3, "start_date": "19102025", "end_date": "19102025"},
+        "Rows": [
+            {
+                "Site Name": "Example Site",
+                "Report Date": "2025-10-19T00:00:00",
+                "Time Period Ending": "00:44:00",  # latest first
+                "Avg mph": "68",
+                "Total Volume": "120",
+            },
+            {
+                "Site Name": "Example Site",
+                "Report Date": "2025-10-19T00:00:00",
+                "Time Period Ending": "00:29:00",
+                "Avg mph": "70",
+                "Total Volume": "150",
+            },
+            {
+                "Site Name": "Example Site",
+                "Report Date": "2025-10-19T00:00:00",
+                "Time Period Ending": "00:14:00",  # earliest last
+                "Avg mph": "65",
+                "Total Volume": "182",
+            },
+        ],
+    }
+
+
 # fixture for a SingleSite object with sample observations
 @pytest.fixture
 def populated_site(sample_observations):
@@ -290,7 +314,9 @@ def populated_site_no_speed_or_volume(sample_observations_no_speed_or_volume):
 class TestAPIClient:
     def test_parse_response_valid(self, valid_api_response):
 
-        client = APIClient(connector=MockAPIConnector(response_data=valid_api_response))
+        client = APIClient(
+            connector=mock_api_connector(response_data=valid_api_response)
+        )
         observations = client.parse_json_response(
             json_data=client.connector.response_data
         )
@@ -304,7 +330,9 @@ class TestAPIClient:
 
     def test_invalid_api_response(self, invalid_observations_api_response):
         client = APIClient(
-            connector=MockAPIConnector(response_data=invalid_observations_api_response)
+            connector=mock_api_connector(
+                response_data=invalid_observations_api_response
+            )
         )
         with pytest.raises(APIResponseError):
             client.fetch_daily_data(461, "20102025")
@@ -312,7 +340,7 @@ class TestAPIClient:
     def test_parse_response_missing_data(self, api_response_with_missing_data):
 
         client = APIClient(
-            connector=MockAPIConnector(response_data=api_response_with_missing_data)
+            connector=mock_api_connector(response_data=api_response_with_missing_data)
         )
         observations = client.parse_json_response(
             json_data=client.connector.response_data
@@ -327,7 +355,7 @@ class TestAPIClient:
     def test_parse_response_single_record(self, api_response_single_record):
 
         client = APIClient(
-            connector=MockAPIConnector(response_data=api_response_single_record)
+            connector=mock_api_connector(response_data=api_response_single_record)
         )
         observations = client.fetch_daily_data(site_id=461, date="21102025")
 
@@ -340,7 +368,9 @@ class TestAPIClient:
 
     def test_parse_response_empty(self, api_response_empty):
 
-        client = APIClient(connector=MockAPIConnector(response_data=api_response_empty))
+        client = APIClient(
+            connector=mock_api_connector(response_data=api_response_empty)
+        )
         observations = client.fetch_daily_data(site_id=461, date="21102025")
 
         assert len(observations) == 0
@@ -348,33 +378,85 @@ class TestAPIClient:
     def test_parse_invalid_date(self, invalid_date_api_response):
 
         client = APIClient(
-            connector=MockAPIConnector(response_data=invalid_date_api_response)
+            connector=mock_api_connector(response_data=invalid_date_api_response)
         )
 
-        with pytest.raises(ValueError, match="Invalid day: 34"):
+        with pytest.raises(ValueError, match="Invalid date: 34102025"):
             client.fetch_daily_data(site_id=461, date="34102025")
 
-        with pytest.raises(ValueError, match="Invalid month: 13"):
+        with pytest.raises(ValueError, match="Invalid date: 20132025"):
             client.fetch_daily_data(site_id=461, date="20132025")
 
         with pytest.raises(ValueError, match="Year out of reasonable range: 2019"):
             client.fetch_daily_data(site_id=461, date="20102019")
 
-        with pytest.raises(
-            ValueError,
-            match="Date must be 8 characters in format DDMMYYYY, got: 2001020256",
-        ):
+        with pytest.raises(ValueError, match="Invalid date: 2001020256"):
             client.fetch_daily_data(site_id=461, date="2001020256")
 
-        with pytest.raises(ValueError, match="Invalid date format: 22102098"):
+        with pytest.raises(ValueError, match="Year out of reasonable range: 2098"):
             client.fetch_daily_data(site_id=461, date="22102098")
+
+    def test_construct_url(self):
+
+        client = APIClient(connector=mock_api_connector(response_data={}))
+        url = client.construct_url(
+            site_id=461, start_date="19102025", end_date="19102025"
+        )
+
+        # check that all required parameters are present in the constructed url
+        assert "sites=461" in url
+        assert "start_date=19102025" in url
+        assert "end_date=19102025" in url
+        assert "page=1" in url
+        assert "page_size=500" in url
+
+    def test_fetch_daily_data_returns_sorted_observations(self, unsorted_api_response):
+
+        client = APIClient(
+            connector=mock_api_connector(response_data=unsorted_api_response)
+        )
+        observations = client.fetch_daily_data(site_id=461, date="19102025")
+
+        # check that observations are sorted chronologically by time
+        assert observations[0].time_period_ending == time(0, 14, 0)
+        assert observations[1].time_period_ending == time(0, 29, 0)
+        assert observations[2].time_period_ending == time(0, 44, 0)
+
+    def test_connection_error_raised_on_network_failure(self):
+
+        from webtris_client import APIConnectionError
+
+        # simulate a network failure by raising a ConnectionError from the mock connector
+        mock = Mock()
+        mock.make_request.side_effect = APIConnectionError("Could not connect to API")
+        client = APIClient(connector=mock)
+
+        with pytest.raises(APIConnectionError):
+            client.fetch_daily_data(site_id=461, date="19102025")
+
+    def test_parse_date(self):
+
+        client = APIClient(connector=mock_api_connector(response_data={}))
+
+        # check that a valid ISO format date string is correctly converted to a date object
+        assert client.parse_date("2025-10-19T00:00:00") == date(2025, 10, 19)
+
+    def test_parse_time(self):
+
+        client = APIClient(connector=mock_api_connector(response_data={}))
+
+        # check that a valid time string is correctly converted to a time object
+        assert client.parse_time("00:14:00") == time(0, 14, 0)
+        assert client.parse_time("12:30:45") == time(12, 30, 45)
 
 
 # test cases for SingleSite class (functions titles are self explanatory)
 class TestSingleSite:
     def test_fetch_data_populates_observations(self, valid_api_response):
 
-        client = APIClient(connector=MockAPIConnector(response_data=valid_api_response))
+        client = APIClient(
+            connector=mock_api_connector(response_data=valid_api_response)
+        )
         site = SingleSite(site_id=461, site_name="Example")
         site.fetch_data(client=client, date="19102025")
 
@@ -442,6 +524,30 @@ class TestSingleSite:
         peak_hour = populated_site_no_speed_or_volume.find_peak_hour()
 
         assert peak_hour is None
+
+    def test_find_peak_hour_empty_site(self):
+
+        # check that find_peak_hour returns None when there are no observations at all
+        site = SingleSite(site_id=461, site_name="Example Site")
+        assert site.find_peak_hour() is None
+
+    def test_fetch_data_updates_site_name(self, valid_api_response):
+
+        client = APIClient(
+            connector=mock_api_connector(response_data=valid_api_response)
+        )
+        # site name should update from "Old Name" to the name found in the API response
+        site = SingleSite(site_id=461, site_name="Old Name")
+        site.fetch_data(client=client, date="19102025")
+
+        assert site.site_name == "Example Site"
+
+    def test_all_observations_for_hour_invalid_hour(self, populated_site):
+
+        with pytest.raises(ValueError, match="Hour must be between 0 and 23, got -1"):
+            populated_site.all_observations_for_hour(hour=-1)
+        with pytest.raises(ValueError, match="Hour must be between 0 and 23, got 24"):
+            populated_site.all_observations_for_hour(hour=24)
 
     def test_iteration_over_observations(self, populated_site):
 
