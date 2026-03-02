@@ -472,3 +472,11 @@ class TestObservation:
         assert not (sample_observations_same_time[0] < sample_observations_same_time[1])
         assert not (sample_observations_same_time[1] < sample_observations_same_time[0])
         assert sample_observations_same_time[0] == sample_observations_same_time[1]
+
+    def test_representation(self, sample_observations):
+
+        repr_str = repr(sample_observations[0])
+        assert (
+            "Observation(name=Example Site, date=2025-10-19, time=00:14:00, speed=65, volume=182)"
+            == repr_str
+        )

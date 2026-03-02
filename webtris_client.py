@@ -42,6 +42,10 @@ class Observation:
             and self.site_name == other.site_name
         )
 
+    # representation for observations
+    def __repr__(self) -> str:
+        return f"Observation(name={self.site_name}, date={self.report_date}, time={self.time_period_ending}, speed={self.avg_speed}, volume={self.total_volume})"
+
 
 # when API can't be reached
 class APIConnectionError(Exception):
