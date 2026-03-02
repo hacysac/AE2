@@ -42,10 +42,6 @@ class Observation:
             and self.site_name == other.site_name
         )
 
-    # representation for observations
-    def __repr__(self) -> str:
-        return f"Observation(name={self.site_name}, date={self.report_date}, time={self.time_period_ending}, speed={self.avg_speed}, volume={self.total_volume})"
-
 
 # when API can't be reached
 class APIConnectionError(Exception):
@@ -304,7 +300,3 @@ class SingleSite:
     # allow len() to return the number of observations
     def __len__(self) -> int:
         return len(self.observations)
-
-    # representation for SingleSite
-    def __repr__(self) -> str:
-        return f"SingleSite(id={self.site_id}, name='{self.site_name}', observations={len(self.observations)})"

@@ -451,11 +451,6 @@ class TestSingleSite:
 
         assert len(populated_site) == len(populated_site.observations)
 
-    def test_representation(self, populated_site):
-
-        repr_str = repr(populated_site)
-        assert "SingleSite(id=461, name='Example Site', observations=6)" == repr_str
-
 
 # test cases for Observation class (functions titles are self explanatory)
 class TestObservation:
@@ -477,11 +472,3 @@ class TestObservation:
         assert not (sample_observations_same_time[0] < sample_observations_same_time[1])
         assert not (sample_observations_same_time[1] < sample_observations_same_time[0])
         assert sample_observations_same_time[0] == sample_observations_same_time[1]
-
-    def test_representation(self, sample_observations):
-
-        repr_str = repr(sample_observations[0])
-        assert (
-            "Observation(name=Example Site, date=2025-10-19, time=00:14:00, speed=65, volume=182)"
-            == repr_str
-        )
