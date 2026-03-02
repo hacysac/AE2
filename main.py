@@ -1,4 +1,5 @@
-from webtris_client import *
+from webtris_client import APIClient, APIConnector, SingleSite
+
 
 def main():
     connector = APIConnector()
@@ -15,6 +16,7 @@ def main():
     hour = 8
     print(f"Average speed for hour {hour}: {site.calculate_avg_speed_for_hour(hour)}")
     print(f"Total volume for hour {hour}: {site.calculate_total_volume_for_hour(hour)}")
+
 
 if __name__ == "__main__":
     main()
