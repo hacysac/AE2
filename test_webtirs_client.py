@@ -335,7 +335,7 @@ class TestAPIClient:
             )
         )
         with pytest.raises(APIResponseError):
-            client.fetch_daily_data(461, "20102025")
+            client.get_daily_data(461, "20102025")
 
     def test_parse_response_missing_data(self, api_response_with_missing_data):
 
@@ -357,7 +357,7 @@ class TestAPIClient:
         client = APIClient(
             connector=mock_api_connector(response_data=api_response_single_record)
         )
-        observations = client.fetch_daily_data(site_id=461, date="21102025")
+        observations = client.get_daily_data(site_id=461, date="21102025")
 
         assert len(observations) == 1
         assert observations[0].site_name == "Example Site"
@@ -371,7 +371,7 @@ class TestAPIClient:
         client = APIClient(
             connector=mock_api_connector(response_data=api_response_empty)
         )
-        observations = client.fetch_daily_data(site_id=461, date="21102025")
+        observations = client.get_daily_data(site_id=461, date="21102025")
 
         assert len(observations) == 0
 
@@ -383,40 +383,40 @@ class TestAPIClient:
 
         # invalid day
         with pytest.raises(ValueError, match="Invalid date: 34102025"):
-            client.fetch_daily_data(site_id=461, date="34102025")
+            client.get_daily_data(site_id=461, date="34102025")
         # invalid month
         with pytest.raises(ValueError, match="Invalid date: 20132025"):
-            client.fetch_daily_data(site_id=461, date="20132025")
+            client.get_daily_data(site_id=461, date="20132025")
         # too many characters
         with pytest.raises(ValueError, match="Invalid date: 2001020256"):
-            client.fetch_daily_data(site_id=461, date="2001020256")
+            client.get_daily_data(site_id=461, date="2001020256")
         # too early year
         with pytest.raises(ValueError, match="Year out of reasonable range: 2019"):
-            client.fetch_daily_data(site_id=461, date="20102019")
+            client.get_daily_data(site_id=461, date="20102019")
         # too late year
         with pytest.raises(ValueError, match="Year out of reasonable range: 2098"):
-            client.fetch_daily_data(site_id=461, date="22102098")
+            client.get_daily_data(site_id=461, date="22102098")
 
-    def test_construct_url(self):
+    def test_make_url(self):
 
         client = APIClient(connector=mock_api_connector(response_data={}))
-        url = client.construct_url(
+        url = client.make_url(
             site_id=461, start_date="19102025", end_date="19102025"
         )
 
-        # check that all required parameters are present in the constructed url
+        # check that all required parameters are present in the new url
         assert "sites=461" in url
         assert "start_date=19102025" in url
         assert "end_date=19102025" in url
         assert "page=1" in url
         assert "page_size=500" in url
 
-    def test_fetch_daily_data_returns_sorted_observations(self, unsorted_api_response):
+    def test_get_daily_data_returns_sorted_observations(self, unsorted_api_response):
 
         client = APIClient(
             connector=mock_api_connector(response_data=unsorted_api_response)
         )
-        observations = client.fetch_daily_data(site_id=461, date="19102025")
+        observations = client.get_daily_data(site_id=461, date="19102025")
 
         # check that observations are sorted chronologically by time
         assert observations[0].time_period_ending == time(0, 14, 0)
@@ -433,7 +433,7 @@ class TestAPIClient:
         client = APIClient(connector=mock)
 
         with pytest.raises(APIConnectionError):
-            client.fetch_daily_data(site_id=461, date="19102025")
+            client.get_daily_data(site_id=461, date="19102025")
 
     def test_parse_date(self):
 
@@ -453,13 +453,13 @@ class TestAPIClient:
 
 # test cases for SingleSite class (functions titles are self explanatory)
 class TestSingleSite:
-    def test_fetch_data_populates_observations(self, valid_api_response):
+    def test_get_data_populates_observations(self, valid_api_response):
 
         client = APIClient(
             connector=mock_api_connector(response_data=valid_api_response)
         )
         site = SingleSite(site_id=461, site_name="Example")
-        site.fetch_data(client=client, date="19102025")
+        site.get_data(client=client, date="19102025")
 
         assert len(site.observations) == 4
         assert site.observations[0].site_name == "Example Site"
@@ -532,14 +532,14 @@ class TestSingleSite:
         site = SingleSite(site_id=461, site_name="Example Site")
         assert site.find_peak_hour() is None
 
-    def test_fetch_data_updates_site_name(self, valid_api_response):
+    def test_get_data_updates_site_name(self, valid_api_response):
 
         client = APIClient(
             connector=mock_api_connector(response_data=valid_api_response)
         )
         # site name should update from "Old Name" to the name found in the API response
         site = SingleSite(site_id=461, site_name="Old Name")
-        site.fetch_data(client=client, date="19102025")
+        site.get_data(client=client, date="19102025")
 
         assert site.site_name == "Example Site"
 

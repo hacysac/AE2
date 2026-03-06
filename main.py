@@ -7,7 +7,7 @@ day = "01"
 month = "01"
 year = "2024"
 date = day + month + year
-site.fetch_data(client, date)
+site.get_data(client, date)
 print(f"Average speed for {date}: {site.calculate_avg_speed()}")
 print(f"Total volume for {date}: {site.calculate_total_volume()}")
 hour = site.find_peak_hour()
