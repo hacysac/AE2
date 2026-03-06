@@ -180,7 +180,9 @@ class APIClient:
         Converts a date string from the API into a Python date object.
         """
         # API returns dates like "2025-10-19T00:00:00"
-        dt = date(month=int(date_str[5:7]), day=int(date_str[8:10]), year=int(date_str[0:4]))
+        dt = date(
+            month=int(date_str[5:7]), day=int(date_str[8:10]), year=int(date_str[0:4])
+        )
         return dt
 
     def parse_time(self, time_str: str) -> time:
