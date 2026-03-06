@@ -207,7 +207,7 @@ class APIClient:
         Validates that the date string is in DDMMYYYY format, represents a real calendar date, and is within a reasonable year range, raises a ValueError if not.
         """
         try:
-            # this will automatically fail if the date is incorrectly formatted or doesnt exist
+            # found on stack overflow, this will automatically fail if the date is incorrectly formatted or doesnt exist
             year = datetime.strptime(date, "%d%m%Y").year
         except ValueError:
             raise ValueError(f"Invalid date: {date}")
