@@ -381,18 +381,19 @@ class TestAPIClient:
             connector=mock_api_connector(response_data=invalid_date_api_response)
         )
 
+        # invalid day
         with pytest.raises(ValueError, match="Invalid date: 34102025"):
             client.fetch_daily_data(site_id=461, date="34102025")
-
+        # invalid month
         with pytest.raises(ValueError, match="Invalid date: 20132025"):
             client.fetch_daily_data(site_id=461, date="20132025")
-
-        with pytest.raises(ValueError, match="Year out of reasonable range: 2019"):
-            client.fetch_daily_data(site_id=461, date="20102019")
-
+        # too many characters
         with pytest.raises(ValueError, match="Invalid date: 2001020256"):
             client.fetch_daily_data(site_id=461, date="2001020256")
-
+        # too early year
+        with pytest.raises(ValueError, match="Year out of reasonable range: 2019"):
+            client.fetch_daily_data(site_id=461, date="20102019")
+        # too late year
         with pytest.raises(ValueError, match="Year out of reasonable range: 2098"):
             client.fetch_daily_data(site_id=461, date="22102098")
 
