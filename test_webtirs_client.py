@@ -194,6 +194,47 @@ def sample_observations():
     ]
 
 
+@pytest.fixture
+def sample_observation_no_speed():
+    return Observation(
+        site_name="Example Site",
+        report_date=date(2025, 10, 19),
+        time_period_ending=time(1, 29, 0),
+        avg_speed=None,  # missing speed
+        total_volume=320,
+    )
+
+@pytest.fixture
+def sample_observation_no_volume():
+    return Observation(
+        site_name="Example Site",
+        report_date=date(2025, 10, 19),
+        time_period_ending=time(1, 29, 0),
+        avg_speed=60,  
+        total_volume=None,  # missing volume
+    )
+
+@pytest.fixture
+def sample_observation_no_speed_or_volume():
+    return Observation(
+        site_name="Example Site",
+        report_date=date(2025, 10, 19),
+        time_period_ending=time(1, 29, 0),
+        avg_speed=None,  # missing speed
+        total_volume=None,  # missing volume
+    )
+
+@pytest.fixture
+def sample_observation():
+    return Observation(
+        site_name="Example Site",
+        report_date=date(2025, 10, 19),
+        time_period_ending=time(1, 29, 0),
+        avg_speed=60,  
+        total_volume=320
+    )
+
+
 # fixture for a list of observations with no valid speed or volume data
 @pytest.fixture
 def sample_observations_no_speed_or_volume():
@@ -563,6 +604,23 @@ class TestSingleSite:
 
 # test cases for Observation class (functions titles are self explanatory)
 class TestObservation:
+    def test_is_valid(self, sample_observation, sample_observation_no_speed, sample_observation_no_volume, sample_observation_no_speed_or_volume):
+        obs_valid = sample_observation
+        obs_no_speed = sample_observation_no_speed
+        obs_no_volume = sample_observation_no_volume
+        obs_neither = sample_observation_no_speed_or_volume
+
+        assert obs_valid.is_valid() is True
+        assert obs_no_speed.is_valid() is False
+        assert obs_no_volume.is_valid() is False
+        assert obs_neither.is_valid() is False
+        assert obs_valid.valid_speed() is True
+        assert obs_no_speed.valid_speed() is False
+        assert obs_valid.valid_volume() is True
+        assert obs_no_speed.valid_volume() is True
+        assert obs_no_volume.valid_speed() is True
+        assert obs_no_volume.valid_volume() is False
+
     def test_comparison(self, sample_observations):
 
         assert sample_observations[0] < sample_observations[1]
