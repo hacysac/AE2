@@ -1,6 +1,7 @@
 from datetime import date, datetime, time
 from typing import Iterator, List, Dict, Any
 import requests
+from requests.exceptions import RequestException, Timeout, ConnectionError
 
 
 class Observation:
@@ -31,6 +32,24 @@ class Observation:
         self.time_period_ending = time_period_ending
         self.avg_speed = avg_speed
         self.total_volume = total_volume
+
+    def valid_volume(self) -> bool:
+        """
+        Returns True if the observation contains valid volume data.
+        """
+        return self.total_volume is not None
+
+    def valid_speed(self) -> bool:
+        """
+        Returns True if the observation contains valid speed data.
+        """
+        return self.avg_speed is not None
+
+    def is_valid(self) -> bool:
+        """
+        Returns True if the observation contains complete data (not missing volume or speed).
+        """
+        return self.valid_volume() and self.valid_speed()
 
     def __lt__(self, other: "Observation") -> bool:
         """
@@ -83,8 +102,8 @@ class APIConnector:
         Makes a get request to the API and returns the JSON response as a dictionary
         """
         try:
-            # attempt to make the API request
-            response = requests.get(url)
+            # attempt to make the API request with a timeout of 10 seconds
+            response = requests.get(url, timeout=10)
 
             # check for errors from site call
             if response.status_code == 404:
@@ -96,16 +115,14 @@ class APIConnector:
                     f"API returned status code {response.status_code}"
                 )
 
-            return response.json()  # return the json as a dictionary if no errors
+            return response.json()  # return the json if no errors
 
         # errors if the request fails
-        except requests.exceptions.Timeout:
-            raise APIConnectionError("Request timed out, API may be unavailable")
-        except requests.exceptions.ConnectionError:
-            raise APIConnectionError(
-                "Could not connect to API, check your internet connection"
-            )
-        except requests.exceptions.RequestException as e:
+        except Timeout:
+            raise APIConnectionError("Request timed out, API may be busy")
+        except ConnectionError:
+            raise APIConnectionError("Failed to connect to the API")
+        except RequestException as e:
             raise APIConnectionError(f"Network error: {e}")
 
 
@@ -114,7 +131,7 @@ class APIClient:
     Functions to get and parse traffic data from the Webtris API, using an APIConnector to handle the actual API requests and errors.
     """
 
-    #baseline URL for all WebTRIS requests
+    # baseline URL for all WebTRIS requests
     BASE_URL = "https://webtris.nationalhighways.co.uk/api/v1.0/reports/daily?"
     connector: APIConnector
 
@@ -131,7 +148,7 @@ class APIClient:
         self.check_date_format(date)
         url = self.make_url(site_id, date, date)
         json_data = self.connector.make_request(url)
-        observations = self.parse_json_response(json_data)
+        observations = self.read_json_response(json_data)
         observations.sort()
 
         return observations
@@ -143,9 +160,9 @@ class APIClient:
         params = f"sites={site_id}&start_date={start_date}&end_date={end_date}&page=1&page_size=500"
         return self.BASE_URL + params
 
-    def parse_json_response(self, json_data: Dict[str, Any]) -> List[Observation]:
+    def read_json_response(self, json_data: Dict[str, Any]) -> List[Observation]:
         """
-        Parses a JSON response from the API into a list of Observations, raising an APIResponseError if not in the right format.
+        Converts a JSON response from the API into a list of Observations, raising an APIResponseError if not in the right format.
         """
         observations = []
 
@@ -157,10 +174,10 @@ class APIClient:
         for row in rows:
             # required attributes for an observation
             site_name = row["Site Name"]
-            report_date = self.parse_date(row["Report Date"])
-            time_period_ending = self.parse_time(row["Time Period Ending"])
-            avg_speed = self.parse_optional_int(row.get("Avg mph", ""))
-            total_volume = self.parse_optional_int(row.get("Total Volume", ""))
+            report_date = self.find_date(row["Report Date"])
+            time_period_ending = self.find_time(row["Time Period Ending"])
+            avg_speed = self.find_int(row.get("Avg mph", ""))
+            total_volume = self.find_int(row.get("Total Volume", ""))
 
             # create an Observation for each 15 minute interval
             observation = Observation(
@@ -176,7 +193,7 @@ class APIClient:
 
         return observations  # return the final list of observations
 
-    def parse_date(self, date_str: str) -> date:
+    def find_date(self, date_str: str) -> date:
         """
         Converts a date string from the API into a Python date object.
         """
@@ -186,7 +203,7 @@ class APIClient:
         )
         return dt
 
-    def parse_time(self, time_str: str) -> time:
+    def find_time(self, time_str: str) -> time:
         """
         Converts a time string from the API into a Python time object.
         """
@@ -194,7 +211,7 @@ class APIClient:
         parts = time_str.split(":")
         return time(hour=int(parts[0]), minute=int(parts[1]), second=int(parts[2]))
 
-    def parse_optional_int(self, value: str) -> int | None:
+    def find_int(self, value: str) -> int | None:
         """
         Attempts to convert a string from the API into an integer, returns None if the value is empty or invalid.
         """
@@ -209,11 +226,12 @@ class APIClient:
         """
         try:
             # found on stack overflow, this will automatically fail if the date is incorrectly formatted or doesnt exist
-            year = datetime.strptime(date, "%d%m%Y").year
+            date_obj = datetime.strptime(date, "%d%m%Y").date()
         except ValueError:
             raise ValueError(f"Invalid date: {date}")
-        if year > 2025 or year < 2020:
-            raise ValueError(f"Year out of reasonable range: {year}")
+        # fail if the date is in the future or before 2020 (dates before 2020 don't contain valid data)
+        if date_obj >= datetime.now().date() or date_obj.year < 2020:
+            raise ValueError(f"Date out of reasonable range: {date_obj}")
 
 
 class SingleSite:
@@ -251,7 +269,7 @@ class SingleSite:
         valid_speeds = [
             observation.avg_speed
             for observation in self.observations
-            if observation.avg_speed is not None
+            if observation.valid_speed()
         ]
 
         if not valid_speeds:
@@ -266,7 +284,7 @@ class SingleSite:
         total = sum(
             observation.total_volume
             for observation in self.observations
-            if observation.total_volume is not None
+            if observation.valid_volume()
         )
 
         return total
@@ -282,7 +300,7 @@ class SingleSite:
         hourly_records = [
             observation.avg_speed
             for observation in self.all_observations_for_hour(hour)
-            if observation.avg_speed is not None
+            if observation.valid_speed()
         ]
 
         if not hourly_records:
@@ -301,7 +319,7 @@ class SingleSite:
         hourly_records = [
             observation.total_volume
             for observation in self.all_observations_for_hour(hour)
-            if observation.total_volume is not None
+            if observation.valid_volume()
         ]
 
         return sum(hourly_records)

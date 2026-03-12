@@ -312,12 +312,12 @@ def populated_site_no_speed_or_volume(sample_observations_no_speed_or_volume):
 
 # test cases for APIClient class (functions titles are self explanatory)
 class TestAPIClient:
-    def test_parse_response_valid(self, valid_api_response):
+    def test_find_response_valid(self, valid_api_response):
 
         client = APIClient(
             connector=mock_api_connector(response_data=valid_api_response)
         )
-        observations = client.parse_json_response(
+        observations = client.read_json_response(
             json_data=client.connector.response_data
         )
 
@@ -337,12 +337,12 @@ class TestAPIClient:
         with pytest.raises(APIResponseError):
             client.get_daily_data(461, "20102025")
 
-    def test_parse_response_missing_data(self, api_response_with_missing_data):
+    def test_find_response_missing_data(self, api_response_with_missing_data):
 
         client = APIClient(
             connector=mock_api_connector(response_data=api_response_with_missing_data)
         )
-        observations = client.parse_json_response(
+        observations = client.read_json_response(
             json_data=client.connector.response_data
         )
 
@@ -352,7 +352,7 @@ class TestAPIClient:
         assert observations[2].avg_speed is None
         assert observations[2].total_volume is None
 
-    def test_parse_response_single_record(self, api_response_single_record):
+    def test_find_response_single_record(self, api_response_single_record):
 
         client = APIClient(
             connector=mock_api_connector(response_data=api_response_single_record)
@@ -366,7 +366,7 @@ class TestAPIClient:
         assert observations[0].avg_speed == 60
         assert observations[0].total_volume == 500
 
-    def test_parse_response_empty(self, api_response_empty):
+    def test_find_response_empty(self, api_response_empty):
 
         client = APIClient(
             connector=mock_api_connector(response_data=api_response_empty)
@@ -375,7 +375,7 @@ class TestAPIClient:
 
         assert len(observations) == 0
 
-    def test_parse_invalid_date(self, invalid_date_api_response):
+    def test_find_invalid_date(self, invalid_date_api_response):
 
         client = APIClient(
             connector=mock_api_connector(response_data=invalid_date_api_response)
@@ -390,19 +390,21 @@ class TestAPIClient:
         # too many characters
         with pytest.raises(ValueError, match="Invalid date: 2001020256"):
             client.get_daily_data(site_id=461, date="2001020256")
-        # too early year
-        with pytest.raises(ValueError, match="Year out of reasonable range: 2019"):
+        # too early date
+        with pytest.raises(
+            ValueError, match="Date out of reasonable range: 2019-10-20"
+        ):
             client.get_daily_data(site_id=461, date="20102019")
-        # too late year
-        with pytest.raises(ValueError, match="Year out of reasonable range: 2098"):
+        # too late date
+        with pytest.raises(
+            ValueError, match="Date out of reasonable range: 2098-10-22"
+        ):
             client.get_daily_data(site_id=461, date="22102098")
 
     def test_make_url(self):
 
         client = APIClient(connector=mock_api_connector(response_data={}))
-        url = client.make_url(
-            site_id=461, start_date="19102025", end_date="19102025"
-        )
+        url = client.make_url(site_id=461, start_date="19102025", end_date="19102025")
 
         # check that all required parameters are present in the new url
         assert "sites=461" in url
@@ -435,20 +437,20 @@ class TestAPIClient:
         with pytest.raises(APIConnectionError):
             client.get_daily_data(site_id=461, date="19102025")
 
-    def test_parse_date(self):
+    def test_find_date(self):
 
         client = APIClient(connector=mock_api_connector(response_data={}))
 
         # check that a valid ISO format date string is correctly converted to a date object
-        assert client.parse_date("2025-10-19T00:00:00") == date(2025, 10, 19)
+        assert client.find_date("2025-10-19T00:00:00") == date(2025, 10, 19)
 
-    def test_parse_time(self):
+    def test_find_time(self):
 
         client = APIClient(connector=mock_api_connector(response_data={}))
 
         # check that a valid time string is correctly converted to a time object
-        assert client.parse_time("00:14:00") == time(0, 14, 0)
-        assert client.parse_time("12:30:45") == time(12, 30, 45)
+        assert client.find_time("00:14:00") == time(0, 14, 0)
+        assert client.find_time("12:30:45") == time(12, 30, 45)
 
 
 # test cases for SingleSite class (functions titles are self explanatory)
