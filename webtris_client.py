@@ -35,25 +35,25 @@ class Observation:
 
     def valid_volume(self) -> bool:
         """
-        Returns True if the observation contains valid volume data.
+        Checks if the observation contains valid volume data.
         """
         return self.total_volume is not None
 
     def valid_speed(self) -> bool:
         """
-        Returns True if the observation contains valid speed data.
+        Checks if the observation contains valid speed data.
         """
         return self.avg_speed is not None
 
     def is_valid(self) -> bool:
         """
-        Returns True if the observation contains complete data (not missing volume or speed).
+        Checks if the observation contains complete data (not missing volume or speed).
         """
         return self.valid_volume() and self.valid_speed()
 
     def __lt__(self, other: "Observation") -> bool:
         """
-        Returns True if this observation happens before the other, comparing first by date and then by time.
+        Checks if this observation occurs before the other, comparing first by date and then by time.
         """
         if self.report_date != other.report_date:
             return self.report_date < other.report_date
@@ -61,7 +61,7 @@ class Observation:
 
     def __eq__(self, other: "Observation") -> bool:
         """
-        Returns True if two observations share the same site name, report date, and time period ending.
+        Checks if two observations share the same site name, report date, and time period ending.
         """
         return (
             self.report_date == other.report_date
@@ -99,7 +99,7 @@ class APIConnector:
 
     def make_request(self, url: str) -> Dict[str, Any]:
         """
-        Makes a get request to the API and returns the JSON response as a dictionary
+        Makes a get request to the API and returns the JSON as a dictionary
         """
         try:
             # attempt to make the API request with a timeout of 10 seconds
@@ -128,16 +128,16 @@ class APIConnector:
 
 class APIClient:
     """
-    Functions to get and parse traffic data from the Webtris API, using an APIConnector to handle the actual API requests and errors.
+    Functions to get and read traffic data from the Webtris API, using an APIConnector to handle the actual API requests and errors.
     """
 
-    # baseline URL for all WebTRIS requests
+    # base URL for all WebTRIS requests
     BASE_URL = "https://webtris.nationalhighways.co.uk/api/v1.0/reports/daily?"
     connector: APIConnector
 
     def __init__(self, connector: APIConnector) -> None:
         """
-        Initialises the APIClient with an APIConnector instance for making requests.
+        Creates the APIClient with an APIConnector to make requests.
         """
         self.connector = connector
 
@@ -162,7 +162,7 @@ class APIClient:
 
     def read_json_response(self, json_data: Dict[str, Any]) -> List[Observation]:
         """
-        Converts a JSON response from the API into a list of Observations, raising an APIResponseError if not in the right format.
+        Converts a JSON response from the API into a list of Observations.
         """
         observations = []
 
@@ -213,7 +213,7 @@ class APIClient:
 
     def find_int(self, value: str) -> int | None:
         """
-        Attempts to convert a string from the API into an integer, returns None if the value is empty or invalid.
+        Attempts to convert a string from the API into an integer, returns None if the value is invalid.
         """
         try:
             return int(value)
@@ -222,7 +222,7 @@ class APIClient:
 
     def check_date_format(self, date: str) -> None:
         """
-        Checks that the date string is in DDMMYYYY format, represents a real date, and is within a reasonable year range, raises a ValueError if not.
+        Checks that the date string is in DDMMYYYY format, represents a real date, and is within a reasonable year range.
         """
         try:
             # found on stack overflow, this will automatically fail if the date is incorrectly formatted or doesnt exist
@@ -264,7 +264,7 @@ class SingleSite:
 
     def calculate_avg_speed(self) -> float | None:
         """
-        Calculates the average speed for all observations with valid speed data, returns None if no valid data exists.
+        Calculates the average speed for all observations with valid speed data.
         """
         valid_speeds = [
             observation.avg_speed
@@ -291,7 +291,7 @@ class SingleSite:
 
     def calculate_avg_speed_for_hour(self, hour: int) -> float | None:
         """
-        Calculates the average speed for a specific hour, returns None if no valid data exists for that hour, raises a ValueError for invalid hour input.
+        Calculates the average speed for a specific hour.
         """
         # catch invalid hour
         if not (0 <= hour <= 23):
@@ -310,7 +310,7 @@ class SingleSite:
 
     def calculate_total_volume_for_hour(self, hour: int) -> int:
         """
-        Calculates the total vehicle volume for a specific hour of the day, raises a ValueError for invalid hour input.
+        Calculates the total vehicle volume for a specific hour of the day.
         """
         # catch invalid hour input
         if not (0 <= hour <= 23):
@@ -326,7 +326,7 @@ class SingleSite:
 
     def all_observations_for_hour(self, hour: int) -> List[Observation]:
         """
-        Returns a list of all observations within the given hour, raises a ValueError for invalid hour input.
+        Returns a list of all observations within the given hour.
         """
         # catch invalid hour input
         if not (0 <= hour <= 23):
@@ -340,7 +340,7 @@ class SingleSite:
 
     def find_peak_hour(self) -> int | None:
         """
-        Returns the hour with the highest total vehicle volume, returns None if there are no observations or all volume data is missing.
+        Returns the hour with the highest total vehicle volume.
         """
         # check for observations
         if not self.observations:
@@ -367,6 +367,6 @@ class SingleSite:
 
     def __len__(self) -> int:
         """
-        Returns the total number of observations stored in this site.
+        Returns the number of observations stored in this site.
         """
         return len(self.observations)
