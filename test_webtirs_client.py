@@ -204,15 +204,17 @@ def sample_observation_no_speed():
         total_volume=320,
     )
 
+
 @pytest.fixture
 def sample_observation_no_volume():
     return Observation(
         site_name="Example Site",
         report_date=date(2025, 10, 19),
         time_period_ending=time(1, 29, 0),
-        avg_speed=60,  
+        avg_speed=60,
         total_volume=None,  # missing volume
     )
+
 
 @pytest.fixture
 def sample_observation_no_speed_or_volume():
@@ -224,14 +226,15 @@ def sample_observation_no_speed_or_volume():
         total_volume=None,  # missing volume
     )
 
+
 @pytest.fixture
 def sample_observation():
     return Observation(
         site_name="Example Site",
         report_date=date(2025, 10, 19),
         time_period_ending=time(1, 29, 0),
-        avg_speed=60,  
-        total_volume=320
+        avg_speed=60,
+        total_volume=320,
     )
 
 
@@ -604,7 +607,13 @@ class TestSingleSite:
 
 # test cases for Observation class (functions titles are self explanatory)
 class TestObservation:
-    def test_is_valid(self, sample_observation, sample_observation_no_speed, sample_observation_no_volume, sample_observation_no_speed_or_volume):
+    def test_is_valid(
+        self,
+        sample_observation,
+        sample_observation_no_speed,
+        sample_observation_no_volume,
+        sample_observation_no_speed_or_volume,
+    ):
         obs_valid = sample_observation
         obs_no_speed = sample_observation_no_speed
         obs_no_volume = sample_observation_no_volume

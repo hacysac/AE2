@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 from typing import Iterator, List, Dict, Any
 import requests
-from requests.exceptions import RequestException, Timeout, ConnectionError
+from requests.exceptions import HTTPError, RequestException, Timeout
 
 
 class Observation:
@@ -106,11 +106,31 @@ class APIConnector:
             response = requests.get(url, timeout=10)
 
             # check for errors from site call
-            if response.status_code == 404:
+            if (
+                response.status_code == 201
+            ):  # not technically and error but we shouldnt be creating a site so treat it as one
+                raise APIResponseError("Site created (201)")
+            elif (
+                response.status_code == 204
+            ):  # not technically an error but we should be getting data so treat it as one
+                raise APIResponseError("Site has no content (204)")
+            elif response.status_code == 301:
+                raise APIResponseError("Site moved permanently (301)")
+            elif response.status_code == 304:
+                raise APIResponseError("Site not modified (304)")
+            elif response.status_code == 400:
+                raise APIResponseError("Bad request (400)")
+            elif response.status_code == 401:
+                raise APIResponseError("Site unauthorized (401)")
+            elif response.status_code == 404:
                 raise APIResponseError("Site not found (404)")
             elif response.status_code == 500:
-                raise APIResponseError("API server error (500)")
-            elif response.status_code != 200:
+                raise APIResponseError("Internal server error (500)")
+            elif response.status_code == 503:
+                raise APIResponseError("Service unavailable (503)")
+            elif (
+                response.status_code != 200
+            ):  # catch any other non-success status codes
                 raise APIResponseError(
                     f"API returned status code {response.status_code}"
                 )
@@ -120,8 +140,8 @@ class APIConnector:
         # errors if the request fails
         except Timeout:
             raise APIConnectionError("Request timed out, API may be busy")
-        except ConnectionError:
-            raise APIConnectionError("Failed to connect to the API")
+        except HTTPError as e:
+            raise APIResponseError(f"HTTP error occurred: {e}")
         except RequestException as e:
             raise APIConnectionError(f"Network error: {e}")
 
